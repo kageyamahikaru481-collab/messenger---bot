@@ -15,6 +15,7 @@ class FightScene extends Phaser.Scene {
     this.add.rectangle(W/2,H/2,W,H,0x10131f);
     this.add.rectangle(W/2,410,W,220,0x20283a);
     for(let x=0;x<W;x+=80) this.add.line(0,0,x,420,x+40,540,0x34405b,.35).setOrigin(0);
+    const tex=this.textures.createCanvas('pixel',8,8); if(tex){tex.context.fillStyle='#fff';tex.context.fillRect(0,0,8,8);tex.refresh();}
     this.ground=this.physics.add.staticGroup();
     const floor=this.add.rectangle(W/2,500,W,50,0x4a556f); this.physics.add.existing(floor,true); this.ground.add(floor);
     this.naruto=this.makeFighter(250,430,0xff7a21);
@@ -53,12 +54,12 @@ class FightScene extends Phaser.Scene {
     let dir=0; if(this.pressed('left')||this.cursors.left.isDown) dir--; if(this.pressed('right')||this.cursors.right.isDown) dir++;
     if(dir){ n.body.setVelocityX(dir*n.speed); n.facing=dir; }
     if((this.cursors.up.isDown||this.pressed('jump')) && n.body.body.blocked.down) this.jump(n);
-    if(Phaser.Input.Keyboard.JustDown(this.keys.A)||Phaser.Input.Keyboard.JustDown(this.keys.S)) this.attack(this.keys.A.isDown?'A':'S');
+    if(Phaser.Input.Keyboard.JustDown(this.keys.A)) this.attack('A');
+    if(Phaser.Input.Keyboard.JustDown(this.keys.S)) this.attack('S');
     if(Phaser.Input.Keyboard.JustDown(this.keys.ONE)) this.power(1); if(Phaser.Input.Keyboard.JustDown(this.keys.TWO)) this.power(2); if(Phaser.Input.Keyboard.JustDown(this.keys.THREE)) this.power(3);
     this.ai(t);
     this.drawFighter(n,0xff7a21); this.drawFighter(g,0x4da6ff); this.updateFx(t);
     if(n.hp<=0||g.hp<=0){ gameState.roundOver=true; const winner=n.hp>0?'NARUTO WINS!':'GOKU WINS!'; (document.getElementById('msg')!).textContent=winner+'  •  Press R to restart'; }
-    if(Phaser.Input.Keyboard.JustDown(this.input.keyboard!.addKey('R')) && gameState.roundOver) location.reload();
     this.updateHud(t);
   }
 
@@ -74,7 +75,7 @@ class FightScene extends Phaser.Scene {
   projectileRasengan(){ const n=this.naruto,g=this.goku; const orb=this.add.circle(n.body.x+n.facing*45,n.body.y-45,22,0x65d9ff).setStrokeStyle(5,0xffffff); this.tweens.add({targets:orb,x:g.body.x,y:g.body.y-35,duration:350,onComplete:()=>{if(Math.abs(orb.x-g.body.x)<55)this.hit(g,22,n.facing*180);orb.destroy();}}); }
   spawnClones(){ this.naruto.clones.forEach(c=>c.destroy()); this.naruto.clones=[]; for(let i=0;i<2;i++){const c=this.add.graphics(); c.x=this.naruto.body.x+(i?55:-55); c.y=this.naruto.body.y; this.naruto.clones.push(c);} }
   addKuramaAura(){ this.tweens.add({targets:this.naruto.body,scaleX:1.18,scaleY:1.12,duration:300,yoyo:true,repeat:8}); }
-  updateFx(t:number){ this.fx.clear(); const n=this.naruto,g=this.goku; if(n.powerUntil>t&&n.kurama){this.fx.lineStyle(5,0xff5a18,.75);this.fx.strokeCircle(n.body.x,n.body.y-45,65+Math.sin(t/80)*5);} if(n.clones.length){n.clones.forEach((c,i)=>{if(t<n.powerUntil){c.clear();c.lineStyle(5,0xff7a21);c.strokeCircle(c.x,c.y-65,18);c.lineBetween(c.x,c.y-45,c.x,c.y-5);c.lineBetween(c.x,c.y-35,c.x+(i?30:-30),c.y-15);c.lineBetween(c.x,c.y-5,c.x+(i?20:-20),c.y+30);} else {c.destroy();}}); if(t>=n.powerUntil)n.clones=[];}}
+  updateFx(t:number){ this.fx.clear(); const n=this.naruto; if(n.powerUntil>t&&n.kurama){this.fx.lineStyle(5,0xff5a18,.75);this.fx.strokeCircle(n.body.x,n.body.y-45,65+Math.sin(t/80)*5);} if(n.clones.length){n.clones.forEach((c,i)=>{if(t<n.powerUntil){c.clear();c.lineStyle(5,0xff7a21);c.strokeCircle(c.x,c.y-65,18);c.lineBetween(c.x,c.y-45,c.x,c.y-5);c.lineBetween(c.x,c.y-35,c.x+(i?30:-30),c.y-15);c.lineBetween(c.x,c.y-5,c.x+(i?20:-20),c.y+30);} else {c.destroy();}}); if(t>=n.powerUntil)n.clones=[];} if(t>=gameState.cd3)n.kurama=false;}
   drawFighter(f:Fighter,skin:number){ const g=this.fx; const x=f.body.x,y=f.body.y; g.lineStyle(7,skin,1); g.strokeCircle(x,y-72,18); g.lineBetween(x,y-54,x,y-5); const attacking=f.attackUntil>this.time.now; g.lineBetween(x,y-45,x+(attacking?f.facing*48:f.facing*25),y-25); g.lineBetween(x,y-43,x-f.facing*22,y-22); g.lineBetween(x,y-5,x-22,y+35); g.lineBetween(x,y-5,x+22,y+35); if(f===this.naruto&&f.kurama) {g.lineStyle(3,0xffb52e,.9);g.strokeCircle(x,y-42,38);} }
   updateHud(t:number){ const n=(document.getElementById('nhp')!),g=(document.getElementById('ghp')!); n.style.width=this.naruto.hp+'%'; g.style.width=this.goku.hp+'%'; const cd=(id:string,end:number)=>{const e=document.getElementById(id)!; const s=Math.max(0,(end-t)/1000);e.textContent=s>0?`${s.toFixed(1)}s`:'READY';}; cd('p1',gameState.cd1);cd('p2',gameState.cd2);cd('p3',gameState.cd3); }
 }
